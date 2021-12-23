@@ -16,6 +16,8 @@
                         placeholder="选择日期"
                         :options="customOption"
                         @change="changeDate(reportDate)"
+                        :shortcuts="shortcuts"
+                        :shortcut-close="true"
                     >
                     </bk-date-picker>
                 </div>
@@ -139,7 +141,6 @@
                             <bk-table
                                 style="margin-top: 15px;"
                                 :data="singleContent.content"
-                                :virtual-render="true"
                             >
                                 <div slot="append" style="text-align: left;padding: 10px 15px">
                                     <bk-button style="display: inline-block;" text @click="dealAdd(index)">
@@ -245,7 +246,17 @@
 
 <script>
     import moment from 'moment'
-    import { bkInput, bkDatePicker, bkTable, bkTableColumn, bkButton, bkSideslider, bkForm, bkFormItem, bkAlert } from 'bk-magic-vue'
+    import {
+        bkAlert,
+        bkButton,
+        bkDatePicker,
+        bkForm,
+        bkFormItem,
+        bkInput,
+        bkSideslider,
+        bkTable,
+        bkTableColumn
+    } from 'bk-magic-vue'
 
     export default {
         name: '',
@@ -262,6 +273,14 @@
         },
         data () {
             return {
+                shortcuts: [
+                    {
+                        text: '今天',
+                        value () {
+                            return new Date()
+                        }
+                    }
+                ],
                 yesterdayDaliy: true,
                 curDate: new Date(),
                 reportDate: new Date(),
@@ -333,10 +352,7 @@
                         }
                     }
                 },
-                curUserLeaveList: [],
-                virtualRenderConfig: {
-                    height: 226
-                }
+                curUserLeaveList: []
             }
         },
         created () {
@@ -352,23 +368,23 @@
         },
         activated () {
             // 如果没有加入任何组就跳转到我的小组页面
-            this.$http.get(
-                '/get_user_groups/'
-            ).then(res => {
-                if (res.result) {
-                    // 没有加入任何组就跳转到我的小组页面
-                    if (res.data.length === 0) {
-                        this.$router.push({ name: 'MyGroup' })
+            if (!this.groupList.length) {
+                this.$http.get(
+                    '/get_user_groups/'
+                ).then(res => {
+                    if (res.result) {
+                        // 没有加入任何组就跳转到我的小组页面
+                        if (res.data.length === 0) {
+                            this.$router.push({ name: 'MyGroup' })
+                        }
+                    } else {
+                        this.$bkMessage({
+                            theme: 'error',
+                            message: res.message
+                        })
                     }
-                } else {
-                    this.$bkMessage({
-                        theme: 'error',
-                        message: res.message
-                    })
-                }
-                // 加载当天的日报
-                this.getDailyReport()
-            })
+                })
+            }
         },
         methods: {
             changeDate (date) {
@@ -405,7 +421,7 @@
                 this.$http.get(
                     '/check_yesterday_daliy/'
                 ).then(res => {
-                    this.yesterdayDaliy = !!res.data
+                    this.yesterdayDaliy = res.result
                 })
             },
             // 界面初始化
@@ -422,6 +438,7 @@
                             }
                         } else {
                             this.groupList = []
+                            this.$router.push({ name: 'MyGroup' })
                         }
                     } else {
                         this.$bkMessage({
@@ -453,7 +470,7 @@
                                 this.dailyDataTitle.push(singleContent.title)
                                 this.dailyDataContent.push(singleContent)
                             } else {
-                                this.newTemplateContent.push((singleContent))
+                                this.newTemplateContent.push(singleContent)
                             }
                         }
                     } else {
@@ -484,7 +501,7 @@
                         message: '前一条内容为空'
                     })
                 } else {
-                    const newobj = { 'text': '', 'cost': 0, 'isPrivate': this.allPrivate }
+                    const newobj = { 'text': '', 'cost': 0, 'isPrivate': this.allPrivate, '$index': contentLength }
                     this.dailyDataContent[index].content.push(newobj)
                 }
             },
@@ -513,7 +530,6 @@
                         } else {
                             for (const tableContentItem of tableContent.content) {
                                 tableContentItem.cost = parseFloat(tableContentItem.cost)
-                                console.log(typeof tableContentItem.cost)
                             }
                             this.newPostDaily.content.push(tableContent)
                         }
@@ -534,7 +550,6 @@
                         '/daily_report/', this.newPostDaily
                     ).then(res => {
                         this.hasWrittenToday = true
-                        console.log(this.newPostDaily)
                         this.newPostDaily = {
                             date: null,
                             content: [],
